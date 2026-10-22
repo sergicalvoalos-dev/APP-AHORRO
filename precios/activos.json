@@ -1,9 +1,25 @@
 {
   "nota": "Activos cuyo precio se descarga solo. Para añadir uno, pon aquí su ISIN y escribe el mismo ISIN en la app (Cartera, Precio de cada activo).",
   "activos": [
-    { "isin": "IE00B5BMR087", "nombre": "Core S&P 500 USD (Acc)" },
-    { "isin": "IE000YYE6WK5", "nombre": "Defense USD (Acc)" },
-    { "isin": "IE00BG0J4C88", "nombre": "Digital Security USD (Acc)" },
-    { "isin": "IE00B4ND3602", "nombre": "Physical Gold USD (Acc)" }
+    {
+      "isin": "IE00B5BMR087",
+      "nombre": "Core S&P 500 USD (Acc)"
+    },
+    {
+      "isin": "IE000YYE6WK5",
+      "nombre": "Defense USD (Acc)"
+    },
+    {
+      "isin": "IE00BG0J4C88",
+      "nombre": "Digital Security USD (Acc)"
+    },
+    {
+      "isin": "IE00B4ND3602",
+      "nombre": "Physical Gold USD (Acc)"
+    },
+    {
+      "isin": "LU1437017350",
+      "nombre": "Core MSCI Mercados Emergentes"
+    }
   ]
 }

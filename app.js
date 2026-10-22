@@ -602,7 +602,7 @@
   }
   function srcTxt(p,sinpos){
     if(p.live){var f=p.live.fecha?p.live.fecha.split('-').reverse().slice(0,2).join('/'):'';return 'En directo ('+(p.live.mercado?cap(String(p.live.mercado).toLowerCase())+', ':'')+f+')'}
-    if(p.isin&&LIVE.data)return 'Sin precio automático: precio manual';
+    if(p.isin&&LIVE.data)return 'Este ISIN aún no está en la lista de precios automáticos. Mientras tanto se usa el precio manual.';
     return sinpos?'Sin posición':'Manual';
   }
   function fit(q,p){return Math.abs(q-p.q)<0.0001?p.q:q}

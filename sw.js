@@ -1,7 +1,7 @@
 // Service worker: permite instalar la app y abrirla sin conexión.
 // Los archivos de la app se piden primero a internet (para tener siempre la última versión)
 // y, si no hay conexión, se sirven desde la caché. Los datos van aparte, por Firebase.
-const CACHE = 'app-ahorro-v3';
+const CACHE = 'app-ahorro-v4';
 const CORE = ['./', 'index.html', 'app.js', 'firebase.js', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 
