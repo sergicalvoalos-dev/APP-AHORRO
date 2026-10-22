@@ -159,6 +159,29 @@
       extra:extra,retR:retR,sob:sob,aparDif:apar-Tm*cerr,pos:pos,cv:cv,ci:ci,hs:hs,realized:realized,vpiso:vpiso};
   }
 
+  /* ---------- gráfico circular de la cartera ---------- */
+  /* Un color por activo, fijo según el activo (no según su tamaño), del 1 al 8. Si hubiera más de 8, el resto va a «Otros». */
+  function donutCard(d){
+    var act=d.pos.filter(function(p){return p.activo&&p.val>0}).sort(function(a,b){return b.val-a.val});
+    var head='<div class="card-head"><h2>Cartera</h2><button class="btn ghost ro-keep" type="button" id="go-cart">Ver cartera</button></div>';
+    if(!act.length)return '<section class="card donut-card">'+head+'<p class="hint">Cuando añadas tus activos en Cartera, aquí verás cómo se reparte tu dinero invertido.</p></section>';
+    var slices=act.slice(0,act.length>8?7:8).map(function(p){return {n:p.n,v:p.val,col:'var(--s'+((p.i%8)+1)+')'}});
+    if(act.length>8){var rest=act.slice(7).reduce(function(s,p){return s+p.val},0);slices.push({n:'Otros',v:rest,col:'var(--line-strong)'})}
+    var tot=d.cv,R=70,C=2*Math.PI*R,gap=slices.length>1?2:0,off=0,arcs='';
+    slices.forEach(function(x){
+      var len=C*x.v/tot,dash=Math.max(0,len-gap);
+      arcs+='<circle r="'+R+'" cx="90" cy="90" fill="none" stroke="'+x.col+'" stroke-width="26" stroke-dasharray="'+dash.toFixed(2)+' '+C.toFixed(2)+'" stroke-dashoffset="'+(-off).toFixed(2)+'"><title>'+escH(x.n)+': '+eur(x.v)+' ('+pc(x.v/tot*100)+')</title></circle>';
+      off+=len;
+    });
+    var pls=d.cv-d.ci,lg='';
+    slices.forEach(function(x){lg+='<li><span class="sw" style="background:'+x.col+'"></span><span class="ln">'+escH(x.n)+'</span><span class="p num">'+pc(x.v/tot*100)+'</span></li>'});
+    return '<section class="card donut-card">'+head+
+      '<div class="donut-wrap"><div class="donut" role="img" aria-label="Reparto de la cartera: '+escH(slices.map(function(x){return x.n+' '+pc(x.v/tot*100)}).join(', '))+'">'+
+      '<svg viewBox="0 0 180 180" aria-hidden="true"><g transform="rotate(-90 90 90)">'+arcs+'</g></svg>'+
+      '<div class="donut-c"><b class="num">'+eur(tot)+'</b><span class="num '+cl(pls)+'">'+arr(pls)+sg(pls,eur)+' ('+sg(d.ci>0?pls/d.ci*100:0,pc)+')</span></div></div>'+
+      '<ul class="legend donut-lg">'+lg+'</ul></div></section>';
+  }
+
   /* ---------- panel ---------- */
   function mesesTxt(n){return n===1?'1 mes':n+' meses'}
   function renderPanel(){
@@ -171,9 +194,6 @@
       return;
     }
     var d=calc(),c=S.cfg,prog=c.meta>0?Math.min(1,d.piso/c.meta):0,pr=pctOf('reto');
-    var ticks=d.hs.slice(0,-1).map(function(h){return '<b style="left:'+(h/c.meta*100)+'%"></b>'}).join('');
-    var nextH=null;for(var i=0;i<d.hs.length;i++){if(d.piso<d.hs[i]){nextH=d.hs[i];break}}
-    var nextTxt=nextH?'Próximo hito: '+eur(nextH)+' · te faltan '+eur(nextH-d.piso):'Reto conseguido';
 
     var estV='—',estS;
     if(d.rest<=0){estV='Conseguido';estS='Ya tienes el dinero del reto.'}
@@ -200,8 +220,7 @@
 
     var hero='<section class="card"><div class="hero-top"><div><div class="eyebrow">'+escH(c.nombreMeta||'Mi reto')+'</div>'+
       '<div class="big num">'+eur(d.piso)+'<span class="of">de '+eur(c.meta)+'</span></div></div><div class="pct num">'+pc(prog*100)+'</div></div>'+
-      '<div class="bar" role="img" aria-label="Progreso del reto: '+pc(prog*100)+'"><i style="width:'+(prog*100)+'%"></i>'+ticks+'</div>'+
-      '<p class="next">'+nextTxt+'</p>'+
+      '<div class="bar" role="img" aria-label="Progreso del reto: '+pc(prog*100)+'"><i style="width:'+(prog*100)+'%"></i></div>'+
       '<dl class="facts"><div><dt>Fecha estimada</dt><dd><span class="v num">'+estV+'</span><span class="s">'+estS+'</span></dd></div>'+
       '<div><dt>Frente a tu plan</dt><dd><span class="v num '+dC+'">'+dV+'</span><span class="s">'+dS+' La fecha se recalcula sola cada mes.</span></dd></div>'+
       '<div><dt>Qué ha movido la fecha</dt><dd><span class="v num '+(d.cerr>0?(dif>=0?'up':'down'):'')+'">'+(d.cerr>0?sg(dif,eur)+' sobre el plan':'—')+'</span><span class="s">'+mS+'</span></dd></div></dl></section>';
@@ -209,17 +228,6 @@
     var dk=dirtyKeys(),sm=sugMes(false),pending=!dk.length&&!!sm&&d.lastI<curIdx(),pend='';
     if(dk.length)pend='<section class="card"><div class="sec-head"><div><h2>Cambios sin guardar</h2><p>'+cap(dk.map(function(k){return lab(fromIdx(k))}).join(', '))+(dk.length===1?' tiene':' tienen')+' cambios en Ingresos que no cuentan en el panel hasta que los guardes.</p></div><button class="btn" id="go-dirty">Revisar</button></div></section>';
     else if(pending)pend='<section class="card"><div class="sec-head"><div><h2>'+cap(lab(sm))+' sin registrar</h2><p>Añade el sueldo y las dietas de ese mes para mantener la fecha al día.</p></div><button class="btn" id="go-mes">Registrar mes</button></div></section>';
-
-    var prev=0,hl='',marked=false;
-    d.hs.forEach(function(h){
-      var done=d.piso>=h,cur=!done&&!marked;
-      if(cur)marked=true;
-      var frac=done?1:Math.max(0,(d.piso-prev)/(h-prev));
-      hl+='<li><span>'+(done?IC.ok:'<span class="ring'+(cur?' now':'')+'"></span>')+'</span><span class="amt num">'+eur(h)+'</span>'+
-        '<span class="mini"><i style="width:'+(frac*100)+'%"></i></span><span class="st num">'+(done?'Conseguido':(cur?'Faltan '+eur(h-d.piso):'Pendiente'))+'</span></li>';
-      prev=h;
-    });
-    var hitos='<section class="card"><div class="card-head"><h2>Hitos</h2><span class="hint">Metas parciales hacia '+eur(c.meta)+'</span></div><ul class="hitos">'+hl+'</ul></section>';
 
     var tot=d.piso+d.cv,wp=tot>0?d.piso/tot*100:50;
     var capital='<section class="card"><div class="card-head"><h2>Capital total</h2><span class="hint">Reto e inversión por separado</span></div>'+
@@ -229,14 +237,9 @@
       '<li><span class="sw" style="background:var(--s2)"></span><span>Cartera de inversión</span><span class="p num">'+pc(100-wp)+'</span><span class="a num">'+eur(d.cv)+'</span></li></ul>'+
       '<p class="hint" style="margin-top:12px">Para el reto solo cuenta el ahorro. La cartera queda aparte.'+(d.vpiso>0?' El ahorro incluye '+eur(d.vpiso)+' de activos vendidos que pasaron a liquidez.':'')+(d.cpiso>0?' Se han restado '+eur(d.cpiso)+' de compras pagadas con el ahorro del reto.':'')+'</p></section>';
 
-    var top=d.pos.filter(function(p){return p.val>0}).sort(function(a,b){return b.val-a.val}).slice(0,4),pl='';
-    top.forEach(function(p){pl+='<div class="pl"><span>'+escH(p.n)+'</span><span class="w"><i style="width:'+(p.peso*100)+'%"></i></span><span class="r num">'+pc(p.peso*100)+'</span></div>'});
-    var pls=d.cv-d.ci;
-    var cart='<section class="card"><div class="card-head"><h2>Cartera</h2><button class="btn ghost" id="go-cart">Ver cartera</button></div>'+
-      '<div class="big num" style="font-size:38px">'+eur(d.cv)+'</div>'+
-      '<p class="'+(pls>=0?'up':'down')+' num" style="margin:2px 0 12px">'+(pls>=0?'▲ ':'▼ ')+sg(pls,eur)+' ('+sg(d.ci>0?pls/d.ci*100:0,pc)+') sobre '+eur(d.ci)+' invertidos</p>'+pl+'</section>';
+    var cart=donutCard(d);
 
-    $('#view-panel').innerHTML=hero+pend+'<div class="row">'+hitos+'<div class="stack">'+capital+cart+'</div></div>';
+    $('#view-panel').innerHTML=hero+pend+'<div class="row">'+cart+capital+'</div>';
     if(pending)$('#go-mes').onclick=function(){var t=sugMes(false);closeOpen();var r=addMes(t);show('ingresos');if(!r)$('#nm-msg').textContent=cap(lab(t))+' añadido. Revisa el sueldo y las dietas y pulsa «Guardar».'};
     if(dk.length)$('#go-dirty').onclick=function(){closeOpen();openK=dk[dk.length-1];show('ingresos')};
     $('#go-cart').onclick=function(){show('cartera')};
@@ -389,76 +392,86 @@
   function esc(s){return escH(s)}
   function fdate(s){var a=(s||'').split('-');return a.length===3?a[2]+'/'+a[1]+'/'+a[0]:'—'}
   function fshort(s){var a=(s||'').split('-');return a.length===3?a[2]+'/'+a[1]+'/'+a[0].slice(2):'—'}
-  var openKey=null,delIdx=null;
+  var openKey=null,delIdx=null,cpanel=null;
   function arr(n){return n>=0?'▲ ':'▼ '}
   function cl(n){return n>=0?'up':'down'}
   var CHEV='<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
-  function activeView(p){
-    var et=p.cyc.length+1;
-    return {key:'a'+p.i,i:p.i,name:p.n,isin:p.isin,cerrado:false,vacio:p.vacio,precio:p.precio,q:p.q,inv:p.inv,val:p.val,pl:p.pl,rent:p.rent,peso:p.peso,medio:p.medio,
-      cs:p.cs,sales:p.sales,f0:p.f0,etapa:et,etapas:et,prevGain:p.gainC,nprev:p.cyc.length};
+  /* Todo lo que se ha vendido de un activo, sumando todas las ventas (parciales o totales, de cualquier etapa) */
+  function ventasDe(p){
+    var all=[];p.cyc.forEach(function(c){all=all.concat(c.sales)});all=all.concat(p.sales);
+    var r={n:all.length,cost:0,proc:0,gain:0,reto:0,f0:'',f1:''};
+    all.forEach(function(x){r.cost+=x.cost;r.proc+=x.proceeds;r.gain+=x.gain;if(x.piso)r.reto+=x.proceeds;if(!r.f0||x.f<r.f0)r.f0=x.f;if(!r.f1||x.f>r.f1)r.f1=x.f});
+    return r;
   }
-  function closedViews(p){
-    var tot=p.cyc.length+(p.activo?1:0);
-    return p.cyc.map(function(c){
-      return {key:'c'+p.i+'-'+c.k,i:p.i,name:p.n,isin:p.isin,cerrado:true,precio:p.precio,cs:c.cs,sales:c.sales,cost:c.cost,proc:c.proc,gain:c.gain,f0:c.f0,f1:c.f1,etapa:c.k+1,etapas:tot};
+  var opsOpen=null;
+  /* Lista compacta de todas las compras y ventas de un activo, para corregirlas */
+  function opsList(i){
+    var p=S.pos[i],items=[];
+    p.compras.forEach(function(c,k){items.push({t:'c',k:k,f:c.f,s:c.seq||0,imp:c.imp,p:c.p,q:c.q>0?c.q:c.imp/c.p,src:c.src})});
+    (p.ventas||[]).forEach(function(v,k){items.push({t:'v',k:k,f:v.f,s:v.seq||0,imp:v.q*v.p,p:v.p,q:v.q,piso:v.piso!==false})});
+    items.sort(function(a,b){return a.f<b.f?1:(a.f>b.f?-1:b.s-a.s)});
+    var h='<div class="ops" id="ops-'+i+'"><div class="ops-in"><div class="ops-row ops-head"><span>Operación</span><span>Fecha</span><span>Importe</span><span>Precio</span><span>Acciones</span><span></span></div>';
+    items.forEach(function(x){
+      var key=x.t+':'+i+':'+x.k;
+      if(editKey===key){h+=(x.t==='c'?compraForm(i,x.k):ventaForm(i,x.k));return}
+      var tipo=x.t==='c'?'Compra'+(x.src==='piso'?' (con ahorro del reto)':''):'Venta'+(x.piso?'':' (no va al reto)');
+      h+='<div class="ops-row"><span>'+tipo+'</span><span>'+fdate(x.f)+'</span><span class="num">'+eur2(x.imp)+'</span><span class="num">'+eur2(x.p)+'</span><span class="num">'+nf4.format(x.q)+'</span>'+itemAct(x.t,i,x.k,x.t==='c'?'esta compra':'esta venta')+'</div>';
     });
+    return h+'</div></div>';
+  }
+  function opsToggle(i){
+    var on=opsOpen===i;
+    return '<button type="button" class="link-btn ops-tg" data-ops="'+i+'" aria-expanded="'+on+'">'+(on?'Ocultar compras y ventas':'Corregir compras y ventas')+'</button>'+(on?opsList(i):'');
   }
 
-  function posBlock(v){
-    var open=openKey===v.key,cells,per='';
-    if(v.cerrado){
-      per='<small>'+(v.etapas>1?'Etapa '+v.etapa+' · ':'')+fshort(v.f0)+' – '+fshort(v.f1)+'</small>';
-      cells='<span data-l="Coste">'+eur(v.cost)+'</span><span data-l="Recibido">'+eur(v.proc)+'</span>'+
-        '<span data-l="Ganancia" class="'+cl(v.gain)+'">'+arr(v.gain)+sg(v.gain,eur)+'</span>'+
-        '<span data-l="Rentab." class="'+cl(v.gain)+'">'+sg(v.cost>0?v.gain/v.cost*100:0,pc)+'</span><span data-l="Estado">Cerrada</span>';
-    }else{
-      if(v.etapas>1)per='<small>Etapa '+v.etapa+' · desde '+fshort(v.f0)+'</small>';
-      cells='<span data-l="Invertido">'+eur(v.inv)+'</span><span data-l="Valor">'+eur(v.val)+'</span>'+
-        '<span data-l="Ganancia" class="'+cl(v.pl)+'">'+arr(v.pl)+sg(v.pl,eur)+'</span>'+
-        '<span data-l="Rentab." class="'+cl(v.rent)+'">'+sg(v.rent*100,pc)+'</span><span data-l="Peso">'+pc(v.peso*100)+'</span>';
-    }
-    var h='<div class="pos"><button type="button" class="pos-btn num" id="tg-'+v.key+'" data-tg="'+v.key+'" aria-expanded="'+open+'" aria-controls="det-'+v.key+'">'+
-      '<span class="nm">'+CHEV+'<span class="nmt">'+esc(v.name)+per+'</span></span>'+cells+'</button>';
-    if(v.vacio){
-      h+='<div class="det" style="padding-top:0">'+(delIdx===v.i?
-        '<div class="actions"><span class="hint">¿Quitar '+esc(v.name)+'? No tiene compras ni ventas.</span><button class="btn" type="button" data-del-yes="'+v.i+'">Sí, quitar</button><button class="btn ghost" type="button" data-del-no="1">No</button></div>':
-        '<div class="actions"><span class="hint">Todavía sin compras. Añade la primera en «Añadir compra».</span><button class="btn ghost" type="button" data-del="'+v.i+'">Quitar activo</button></div>')+'</div>';
+  /* Fila de un activo que tienes ahora: solo lo que sigue en cartera */
+  function activeBlock(p){
+    var key='a'+p.i,open=openKey===key;
+    var cells='<span data-l="Invertido">'+eur(p.inv)+'</span><span data-l="Valor">'+eur(p.val)+'</span>'+
+      '<span data-l="Ganancia" class="'+cl(p.pl)+'">'+arr(p.pl)+sg(p.pl,eur)+'</span>'+
+      '<span data-l="Rentab." class="'+cl(p.rent)+'">'+sg(p.rent*100,pc)+'</span><span data-l="Peso">'+pc(p.peso*100)+'</span>';
+    var h='<div class="pos"><button type="button" class="pos-btn num" id="tg-'+key+'" data-tg="'+key+'" aria-expanded="'+open+'" aria-controls="det-'+key+'">'+
+      '<span class="nm">'+CHEV+'<span class="nmt">'+esc(p.n)+'</span></span>'+cells+'</button>';
+    if(p.vacio){
+      h+='<div class="det" style="padding-top:0">'+(delIdx===p.i?
+        '<div class="actions"><span class="hint">¿Quitar '+esc(p.n)+'? No tiene compras ni ventas.</span><button class="btn" type="button" data-del-yes="'+p.i+'">Sí, quitar</button><button class="btn ghost" type="button" data-del-no="1">No</button></div>':
+        '<div class="actions"><span class="hint">Todavía sin compras. Añade la primera con «Añadir compra».</span><button class="btn ghost" type="button" data-del="'+p.i+'">Quitar activo</button></div>')+'</div>';
     }
     if(open){
-      var d='<div class="det" id="det-'+v.key+'" role="region" aria-label="Historial de '+esc(v.name)+'"><div class="det-sum">';
-      if(v.cerrado)d+='<span>Ganancia realizada <b class="num '+cl(v.gain)+'">'+sg(v.gain,eur2)+'</b></span><span>Dinero recibido <b class="num">'+eur2(v.proc)+'</b></span>';
-      else d+='<span>Precio medio de compra <b class="num">'+eur2(v.medio)+'</b></span><span>Acciones en total <b class="num">'+nf4.format(v.q)+'</b></span><span>Precio actual <b class="num">'+eur2(v.precio)+'</b></span>';
-      if(v.isin)d+='<span>ISIN <b>'+esc(v.isin)+'</b></span>';
-      d+='<span>'+v.cs.length+(v.cs.length===1?' compra':' compras')+(v.sales.length?' · '+v.sales.length+(v.sales.length===1?' venta':' ventas'):'')+'</span>';
-      if(!v.cerrado&&v.nprev>0)d+='<span>Etapas anteriores: ganancia realizada <b class="num '+cl(v.prevGain)+'">'+sg(v.prevGain,eur2)+'</b> (en «Activos cerrados»)</span>';
-      d+='</div>';
-      v.cs.slice().sort(function(a,b){return a.f<b.f?1:(a.f>b.f?-1:b.s-a.s)}).forEach(function(c){
-        var ck='c:'+v.i+':'+c.k;
-        if(editKey===ck){d+=compraForm(v.i,c.k);return}
-        var sold=c.rem<=1e-9,part=!sold&&c.rem<c.q0-1e-9,impR=c.imp*(c.rem/c.q0),val=c.rem*v.precio,pl=val-impR;
-        d+='<div class="cp"><div><span>Fecha</span><b>'+fdate(c.f)+(sold?'<i class="tag2">Vendida</i>':(part?'<i class="tag2">Parcial</i>':''))+(c.src==='piso'?'<i class="tag2">Con ahorro del reto</i>':'')+'</b></div>'+
-          '<div><span>Invertido</span><b class="num">'+eur2(sold?c.imp:impR)+'</b></div>'+
-          '<div><span>Precio de compra</span><b class="num">'+eur2(c.p)+'</b></div>'+
-          '<div><span>Acciones</span><b class="num">'+nf4.format(sold?c.q0:c.rem)+(part?' de '+nf4.format(c.q0):'')+'</b></div>'+
-          (sold?'<div><span>Valor hoy</span><b>—</b></div><div><span>Beneficio</span><b>—</b></div><div><span>Rentabilidad</span><b>—</b></div>':
-          '<div><span>Valor hoy</span><b class="num">'+eur2(val)+'</b></div>'+
-          '<div><span>Beneficio</span><b class="num '+cl(pl)+'">'+arr(pl)+sg(pl,eur2)+'</b></div>'+
-          '<div><span>Rentabilidad</span><b class="num '+cl(pl)+'">'+sg(impR>0?pl/impR*100:0,pc)+'</b></div>')+itemAct('c',v.i,c.k,'esta compra')+'</div>';
-      });
-      if(v.sales.length){
-        d+='<p class="sub-h">Ventas</p>';
-        v.sales.slice().reverse().forEach(function(s){
-          if(editKey==='v:'+v.i+':'+s.k){d+=ventaForm(v.i,s.k);return}
-          d+='<div class="cp"><div><span>Fecha</span><b>'+fdate(s.f)+'</b></div><div><span>Acciones vendidas</span><b class="num">'+nf4.format(s.q)+'</b></div>'+
-            '<div><span>Precio de venta</span><b class="num">'+eur2(s.p)+'</b></div><div><span>Dinero recibido</span><b class="num">'+eur2(s.proceeds)+'</b></div>'+
-            '<div><span>Ganancia realizada</span><b class="num '+cl(s.gain)+'">'+arr(s.gain)+sg(s.gain,eur2)+'</b></div>'+
-            '<div><span>Rentabilidad</span><b class="num '+cl(s.gain)+'">'+sg(s.rent*100,pc)+'</b></div>'+
-            '<div><span>Cuenta para el reto</span><b>'+(s.piso?'Sí':'No')+'</b></div>'+itemAct('v',v.i,s.k,'esta venta')+'</div>';
+      var lots=p.cs.filter(function(c){return c.rem>1e-9}).sort(function(a,b){return a.f<b.f?1:(a.f>b.f?-1:b.s-a.s)});
+      var d='<div class="det" id="det-'+key+'" role="region" aria-label="Detalle de '+esc(p.n)+'"><p class="det-sum">'+
+        '<span>Precio medio <b class="num">'+eur2(p.medio)+'</b></span><span>Acciones <b class="num">'+nf4.format(p.q)+'</b></span><span>Precio actual <b class="num">'+eur2(p.precio)+'</b></span>'+
+        (p.isin?'<span>ISIN <b>'+esc(p.isin)+'</b></span>':'')+'</p>';
+      if(lots.length){
+        d+='<div class="lots"><div class="lots-in"><div class="lot-row lot-head"><span>Compra</span><span>Invertido</span><span>Precio</span><span>Acciones</span><span>Valor hoy</span><span>Beneficio</span></div>';
+        lots.forEach(function(c){
+          var impR=c.imp*(c.rem/c.q0),val=c.rem*p.precio,pl=val-impR;
+          d+='<div class="lot-row"><span>'+fdate(c.f)+'</span><span class="num">'+eur2(impR)+'</span><span class="num">'+eur2(c.p)+'</span><span class="num">'+nf4.format(c.rem)+'</span><span class="num">'+eur2(val)+'</span><span class="num '+cl(pl)+'">'+sg(pl,eur2)+'</span></div>';
         });
+        d+='</div></div>';
       }
-      h+=d+'</div>';
+      var vs=ventasDe(p);
+      if(vs.n)d+='<p class="hint" style="margin:8px 0 0">Ya has vendido parte de este activo: lo ves en «Ventas».</p>';
+      h+=d+opsToggle(p.i)+'</div>';
+    }
+    return h+'</div>';
+  }
+
+  /* Fila de ventas de un activo: todo lo que te ha aportado al venderlo */
+  function salesBlock(p,vs){
+    var key='s'+p.i,open=openKey===key,rent=vs.cost>0?vs.gain/vs.cost*100:0;
+    var h='<div class="pos"><button type="button" class="pos-btn num" id="tg-'+key+'" data-tg="'+key+'" aria-expanded="'+open+'" aria-controls="det-'+key+'">'+
+      '<span class="nm">'+CHEV+'<span class="nmt">'+esc(p.n)+'</span></span>'+
+      '<span data-l="Coste">'+eur(vs.cost)+'</span><span data-l="Recibido">'+eur(vs.proc)+'</span>'+
+      '<span data-l="Resultado" class="'+cl(vs.gain)+'">'+arr(vs.gain)+sg(vs.gain,eur)+'</span>'+
+      '<span data-l="Rentab." class="'+cl(vs.gain)+'">'+sg(rent,pc)+'</span><span data-l="Estado">'+(p.activo?'En cartera':'Vendido')+'</span></button>';
+    if(open){
+      h+='<div class="det" id="det-'+key+'" role="region" aria-label="Ventas de '+esc(p.n)+'"><p class="det-txt">'+
+        (vs.n===1?'Una venta, el '+fdate(vs.f0)+'. ':vs.n+' ventas entre el '+fdate(vs.f0)+' y el '+fdate(vs.f1)+'. ')+
+        'Recibiste '+eur2(vs.proc)+' por acciones que te costaron '+eur2(vs.cost)+': '+(vs.gain>=0?'ganaste ':'perdiste ')+eur2(Math.abs(vs.gain))+'.'+
+        (vs.reto>0?' '+(Math.abs(vs.reto-vs.proc)<0.01?'Todo':eur2(vs.reto)+' de ese dinero')+' pasó al ahorro del reto.':'')+
+        (p.activo?' Todavía tienes acciones de este activo en tu cartera.':'')+'</p>'+opsToggle(p.i)+'</div>';
     }
     return h+'</div>';
   }
@@ -538,22 +551,25 @@
       '<div class="card kpi"><div class="l">Ganancia o pérdida</div><div class="v num '+cl(pls)+'">'+arr(pls)+sg(pls,eur)+'</div><div class="l num">'+sg(d.ci>0?pls/d.ci*100:0,pc)+'</div></div>'+
       '<div class="card kpi"><div class="l">Ganancia realizada</div><div class="v num '+cl(d.realized)+'">'+arr(d.realized)+sg(d.realized,eur)+'</div><div class="l">Por lo que ya has vendido</div></div>';
     var list='<div class="pos-head"><span>Activo</span><span>Invertido</span><span>Valor</span><span>Ganancia</span><span>Rentab.</span><span>Peso</span></div>',n=0;
-    d.pos.forEach(function(p){if(p.activo||p.vacio){list+=posBlock(activeView(p));n++}});
+    d.pos.forEach(function(p){if(p.activo||p.vacio){list+=activeBlock(p);n++}});
     if(!n)list+='<p class="hint" style="padding:12px 8px">No tienes ninguna posición abierta. Añade una compra para empezar.</p>';
     list+='<div class="pos-tot num"><span>Total</span><span data-l="Invertido">'+eur(d.ci)+'</span><span data-l="Valor">'+eur(d.cv)+'</span>'+
       '<span data-l="Ganancia" class="'+cl(pls)+'">'+sg(pls,eur)+'</span><span data-l="Rentab.">'+sg(d.ci>0?pls/d.ci*100:0,pc)+'</span><span data-l="Peso">100 %</span></div>';
     $('#cart-tbl').innerHTML=list;
-    var cv=[];
-    d.pos.forEach(function(p){closedViews(p).forEach(function(v){cv.push(v)})});
-    cv.sort(function(a,b){return a.f1<b.f1?1:(a.f1>b.f1?-1:0)});
-    $('#closed-card').hidden=!cv.length;
-    if(cv.length){
-      var cr='<div class="pos-head"><span>Activo</span><span>Coste</span><span>Recibido</span><span>Ganancia</span><span>Rentab.</span><span>Estado</span></div>';
-      cv.forEach(function(v){cr+=posBlock(v)});
+    var sv=[];
+    d.pos.forEach(function(p){var vs=ventasDe(p);if(vs.n)sv.push({p:p,vs:vs})});
+    sv.sort(function(a,b){return a.vs.f1<b.vs.f1?1:(a.vs.f1>b.vs.f1?-1:0)});
+    $('#closed-card').hidden=!sv.length;
+    if(sv.length){
+      var cr='<div class="pos-head"><span>Activo</span><span>Coste</span><span>Recibido</span><span>Resultado</span><span>Rentab.</span><span>Estado</span></div>';
+      sv.forEach(function(x){cr+=salesBlock(x.p,x.vs)});
+      var tg=sv.reduce(function(s,x){return s+x.vs.gain},0),tp=sv.reduce(function(s,x){return s+x.vs.proc},0),tc=sv.reduce(function(s,x){return s+x.vs.cost},0);
+      cr+='<div class="pos-tot num"><span>Total</span><span data-l="Coste">'+eur(tc)+'</span><span data-l="Recibido">'+eur(tp)+'</span><span data-l="Resultado" class="'+cl(tg)+'">'+sg(tg,eur)+'</span><span data-l="Rentab.">'+sg(tc>0?tg/tc*100:0,pc)+'</span><span></span></div>';
       $('#cart-closed').innerHTML=cr;
     }
     if(openKey&&!$('#det-'+openKey))openKey=null;
-    document.querySelectorAll('[data-tg]').forEach(function(b){b.onclick=function(){var k=b.dataset.tg;openKey=(openKey===k)?null:k;editKey=null;delKey=null;updCartera('tg-'+k)}});
+    document.querySelectorAll('[data-tg]').forEach(function(b){b.onclick=function(){var k=b.dataset.tg;openKey=(openKey===k)?null:k;editKey=null;delKey=null;opsOpen=null;updCartera('tg-'+k)}});
+    document.querySelectorAll('[data-ops]').forEach(function(b){b.onclick=function(){var i=+b.dataset.ops;opsOpen=(opsOpen===i)?null:i;editKey=null;delKey=null;updCartera()}});
     bindItems();
     document.querySelectorAll('[data-del]').forEach(function(b){b.onclick=function(){delIdx=+b.dataset.del;updCartera()}});
     document.querySelectorAll('[data-del-no]').forEach(function(b){b.onclick=function(){delIdx=null;updCartera()}});
@@ -624,13 +640,18 @@
     el.textContent='Precios apuntados por última vez el '+f.toLocaleDateString('es-ES',{day:'numeric',month:'long',year:'numeric'})+'. Actualízalos abajo con los de Trade Republic.';
   }
   function renderCartera(){
-    openKey=null;delIdx=null;editKey=null;delKey=null;
+    openKey=null;delIdx=null;editKey=null;delKey=null;opsOpen=null;cpanel=null;
     var today=new Date().toISOString().slice(0,10);
-    $('#view-cartera').innerHTML='<div class="sec-head"><div><h2>Cartera</h2><p>Toca un activo para ver el historial de sus compras y ventas.</p></div></div>'+
+    $('#view-cartera').innerHTML='<div class="sec-head"><div><h2>Cartera</h2><p>Tus activos, lo que valen hoy y lo que te han dado tus ventas.</p></div></div>'+
       '<section class="card pricebar"><div><div class="eyebrow">Precios</div><p class="hint" id="pb-msg"></p></div></section>'+
-      '<div class="kpis" id="cart-kpi"></div><section class="card"><div id="cart-tbl"></div><p class="ok-msg" id="cart-msg" aria-live="polite"></p></section>'+
-      '<section class="card" id="closed-card" hidden><div class="card-head"><h2>Activos cerrados</h2><span class="hint">Etapas ya vendidas. Si recompras un activo, empieza una etapa nueva y esta se conserva aquí.</span></div><div id="cart-closed"></div></section>'+
-      '<div class="row"><section class="card"><div class="card-head"><h2>Añadir compra</h2></div><form id="f-compra"><div class="formgrid">'+
+      '<div class="kpis" id="cart-kpi"></div>'+
+      '<div class="cart-actions ro-hide" role="group" aria-label="Acciones de la cartera">'+
+        '<button type="button" class="btn ghost" data-cpanel="compra" aria-expanded="false" aria-controls="cp-compra">Añadir compra</button>'+
+        '<button type="button" class="btn ghost" data-cpanel="venta" aria-expanded="false" aria-controls="cp-venta">Vender</button>'+
+        '<button type="button" class="btn ghost" data-cpanel="activo" aria-expanded="false" aria-controls="cp-activo">Añadir activo</button>'+
+        '<button type="button" class="btn ghost" data-cpanel="precios" aria-expanded="false" aria-controls="cp-precios">Precios e ISIN</button>'+
+      '</div><div id="cpanels">'+
+      '<section class="card cpanel" id="cp-compra" hidden><div class="card-head"><h2>Añadir compra</h2></div><form id="f-compra"><div class="formgrid">'+
       '<div class="f"><label for="c-act">Activo</label><select id="c-act"></select></div>'+
       '<div class="f"><label for="c-fec">Fecha de la compra</label><input id="c-fec" type="date" value="'+today+'"></div>'+
       '<div class="f"><label for="c-imp">Dinero invertido (€)</label><input id="c-imp" type="number" inputmode="decimal" step="any" min="0" placeholder="500"></div>'+
@@ -639,7 +660,7 @@
       '<div class="f"><label for="c-src">Pagado con</label><select id="c-src"><option value="inv">Dinero para invertir</option><option value="piso">Ahorro del reto (se resta)</option></select></div>'+
       '</div><p class="hint" style="margin-top:10px">Escribe el dinero que has puesto y el precio al que compraste: las acciones se calculan solas. Si Trade Republic te da otra cifra de acciones, puedes escribirla tú. Si recompras con dinero que tenías en el ahorro del reto (por ejemplo, de una venta), elige «Ahorro del reto» para que no se cuente dos veces.</p>'+
       '<div style="margin-top:12px"><button class="btn" type="submit">Añadir compra</button></div><p class="ok-msg" id="c-msg" aria-live="polite"></p></form></section>'+
-      '<section class="card"><div class="card-head"><h2>Vender o liquidar</h2></div><p class="hint" id="v-none" hidden>No tienes ningún activo con acciones para vender.</p>'+
+      '<section class="card cpanel" id="cp-venta" hidden><div class="card-head"><h2>Vender o liquidar</h2></div><p class="hint" id="v-none" hidden>No tienes ningún activo con acciones para vender.</p>'+
       '<form id="f-venta"><div class="formgrid">'+
       '<div class="f"><label for="v-act">Activo</label><select id="v-act"></select></div>'+
       '<div class="f"><label for="v-fec">Fecha de la venta</label><input id="v-fec" type="date" value="'+today+'"></div>'+
@@ -649,15 +670,23 @@
       '<label class="chk"><input type="checkbox" id="v-all"> Vender todas las acciones</label>'+
       '<label class="chk"><input type="checkbox" id="v-piso" checked> El dinero pasa a liquidez y cuenta para el ahorro del reto</label></div>'+
       '<p class="hint" id="v-prev" style="margin-top:10px" aria-live="polite"></p>'+
-      '<div style="margin-top:12px"><button class="btn" type="submit">Registrar venta</button></div><p class="ok-msg" id="v-msg" aria-live="polite"></p></form></section></div>'+
-      '<div class="row"><section class="card"><div class="card-head"><h2>Añadir activo</h2></div><form id="f-activo"><div class="formgrid">'+
+      '<div style="margin-top:12px"><button class="btn" type="submit">Registrar venta</button></div><p class="ok-msg" id="v-msg" aria-live="polite"></p></form></section>'+
+      '<section class="card cpanel" id="cp-activo" hidden><div class="card-head"><h2>Añadir activo</h2></div><form id="f-activo"><div class="formgrid">'+
       '<div class="f"><label for="a-n">Nombre</label><input id="a-n" type="text" placeholder="Por ejemplo, Bonos europeos"></div>'+
       '<div class="f"><label for="a-isin">ISIN (opcional)</label><input id="a-isin" type="text" placeholder="IE00B5BMR087"></div>'+
       '<div class="f"><label for="a-p">Precio actual (€)</label><input id="a-p" type="number" inputmode="decimal" step="any" min="0"></div>'+
       '</div><div style="margin-top:12px"><button class="btn" type="submit">Añadir activo</button></div><p class="ok-msg" id="a-msg" aria-live="polite"></p></form></section>'+
-      '<section class="card"><div class="card-head"><h2>Precio de cada activo</h2></div><div id="price-list"></div>'+
-      '<p class="hint" style="margin-top:8px">Pon el precio por acción que ves en Trade Republic. Se opera de lunes a viernes, de 7:30 a 23:00 (hora de España).</p></section></div>';
+      '<section class="card cpanel" id="cp-precios" hidden><div class="card-head"><h2>Precios e ISIN</h2></div><div id="price-list"></div>'+
+      '<p class="hint" style="margin-top:8px">Con el ISIN, el precio se pone solo si el activo está en la lista de precios automáticos. Si no, escribe el precio por acción que ves en Trade Republic.</p></section></div>'+
+      '<section class="card"><div class="card-head"><h2>Activos</h2><span class="hint">Toca uno para ver sus compras</span></div><div id="cart-tbl"></div><p class="ok-msg" id="cart-msg" aria-live="polite"></p></section>'+
+      '<section class="card" id="closed-card" hidden><div class="card-head"><h2>Ventas</h2><span class="hint">Lo que te ha aportado cada activo al venderlo</span></div><div id="cart-closed"></div></section>';
     refreshForms();updCartera();
+    document.querySelectorAll('[data-cpanel]').forEach(function(b){b.onclick=function(){
+      var k=b.dataset.cpanel;cpanel=(cpanel===k)?null:k;
+      document.querySelectorAll('[data-cpanel]').forEach(function(x){x.setAttribute('aria-expanded',x.dataset.cpanel===cpanel?'true':'false')});
+      document.querySelectorAll('.cpanel').forEach(function(x){x.hidden=x.id!=='cp-'+cpanel});
+      if(cpanel){var f=$('#cp-'+cpanel+' input:not([type=hidden]),#cp-'+cpanel+' select');if(f&&f.focus)f.focus()}
+    }});
 
     var qEd=false;
     function autoQ(){if(qEd)return;var im=num($('#c-imp').value),p=num($('#c-p').value);$('#c-q').value=(im>0&&p>0)?String(Math.round(im/p*10000)/10000):''}
@@ -714,8 +743,10 @@
       e.preventDefault();
       var n=$('#a-n').value.trim(),pr=num($('#a-p').value);
       if(!n){$('#a-msg').textContent='Escribe el nombre del activo.';return}
-      if(pr<=0){$('#a-msg').textContent='Escribe su precio actual, mayor que cero.';return}
-      S.pos.push({n:n,isin:$('#a-isin').value.trim(),precio:pr,compras:[],ventas:[]});
+      var isinN=$('#a-isin').value.replace(/\s+/g,'').toUpperCase(),lp=livePrice(isinN);
+      if(pr<=0&&lp)pr=lp.precio;
+      if(pr<=0){$('#a-msg').textContent='Escribe su precio actual, mayor que cero. Si su ISIN está en la lista de precios automáticos, el precio se pone solo.';return}
+      S.pos.push({n:n,isin:isinN,precio:pr,compras:[],ventas:[]});
       ['#a-n','#a-isin','#a-p'].forEach(function(s){$(s).value=''});
       refreshForms();updCartera();
       $('#a-msg').textContent='Activo añadido. Ahora registra su primera compra en «Añadir compra».';
