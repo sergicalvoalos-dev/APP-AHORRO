@@ -32,6 +32,8 @@
     return {cfg:cfg,meses:meses,pos:pos,seq:+x.seq||10,preciosFecha:x.preciosFecha||null};
   }
   var S=defaultState();
+  var LIVE={data:null};
+  function livePrice(isin){var x=isin&&LIVE.data&&LIVE.data.precios[String(isin).toUpperCase()];return x&&x.precio>0?x:null}
   var MES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
   var MESC=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 
@@ -127,8 +129,9 @@
         return {k:k,cs:cy.cs,sales:cy.sales,cost:cost,proc:proc,gain:gain,f0:minF(cy.cs),f1:cy.sales.length?cy.sales[cy.sales.length-1].f:''};
       });
       var gainC=cyc.reduce(function(s,x){return s+x.gain},0);
-      var val=q*p.precio;
-      return {i:i,n:p.n,isin:p.isin||'',precio:p.precio,q:q,inv:inv,val:val,pl:val-inv,rent:inv>0?(val-inv)/inv:0,peso:0,
+      var lp=livePrice(p.isin),precio=lp?lp.precio:p.precio;
+      var val=q*precio;
+      return {i:i,n:p.n,isin:p.isin||'',precio:precio,live:lp,manual:p.precio,q:q,inv:inv,val:val,pl:val-inv,rent:inv>0?(val-inv)/inv:0,peso:0,
         cs:a.cs,sales:a.sales,f0:minF(a.cs),medio:q>0?inv/q:0,gainA:gainA,gainC:gainC,gain:gainA+gainC,vp:vp,cyc:cyc,
         activo:q>1e-4,vacio:p.compras.length===0&&(p.ventas||[]).length===0};
     });
@@ -566,7 +569,10 @@
     d.pos.forEach(function(p){
       var sinpos=!p.activo&&!p.vacio;
       oc+='<option value="'+p.i+'">'+esc(p.n)+(sinpos?' (sin posición)':'')+'</option>';
-      pr+='<div class="priceRow"><label for="pp'+p.i+'">'+esc(p.n)+'</label><input id="pp'+p.i+'" type="number" inputmode="decimal" step="0.01" min="0" data-pi="'+p.i+'" value="'+p.precio+'"><span class="src">'+(sinpos?'Sin posición':'Manual')+'</span></div>';
+      pr+='<div class="priceRow"><span class="pn">'+esc(p.n)+'</span>'+
+        '<input id="pi'+p.i+'" type="text" autocapitalize="characters" spellcheck="false" maxlength="12" data-isin="'+p.i+'" value="'+esc(p.isin)+'" placeholder="ISIN" aria-label="ISIN de '+esc(p.n)+'">'+
+        (p.live?'<span class="pl-live num">'+eur2(p.live.precio)+'</span>':'<input id="pp'+p.i+'" type="number" inputmode="decimal" step="0.01" min="0" data-pi="'+p.i+'" value="'+p.manual+'" aria-label="Precio de '+esc(p.n)+'">')+
+        '<span class="src" id="ps'+p.i+'">'+srcTxt(p,sinpos)+'</span></div>';
       if(p.activo)ov+='<option value="'+p.i+'">'+esc(p.n)+' ('+nf4.format(p.q)+' acciones)</option>';
     });
     $('#price-list').innerHTML=pr;
@@ -577,6 +583,11 @@
     $('#f-venta').querySelectorAll('input,select,button').forEach(function(x){x.disabled=!ov});
     $('#v-none').hidden=!!ov;
     prevVenta();
+  }
+  function srcTxt(p,sinpos){
+    if(p.live){var f=p.live.fecha?p.live.fecha.split('-').reverse().slice(0,2).join('/'):'';return 'En directo ('+(p.live.mercado?cap(String(p.live.mercado).toLowerCase())+', ':'')+f+')'}
+    if(p.isin&&LIVE.data)return 'Sin precio automático: precio manual';
+    return sinpos?'Sin posición':'Manual';
   }
   function fit(q,p){return Math.abs(q-p.q)<0.0001?p.q:q}
   /* Simula la venta con las reglas reales y devuelve su registro */
@@ -600,7 +611,14 @@
 
   function updPrecioMsg(){
     var el=$('#pb-msg');if(!el)return;
-    if(!S.pos.length){el.textContent='Añade tus activos y sus compras abajo. El valor de la cartera sale del precio que apuntes de cada uno.';return}
+    if(!S.pos.length){el.textContent='Añade tus activos y sus compras abajo. El valor de la cartera sale del precio de cada uno.';return}
+    var d=calc(),act=d.pos.filter(function(p){return p.activo}),vivos=act.filter(function(p){return p.live}),sin=act.filter(function(p){return !p.live});
+    if(LIVE.data&&vivos.length){
+      var h=new Date(LIVE.data.actualizado);
+      var txt='Precios en directo de justETF, consultados el '+h.toLocaleDateString('es-ES',{day:'numeric',month:'long'})+' a las '+h.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})+'. Se actualizan solos cada 15 minutos en horario de mercado.';
+      if(sin.length)txt+=' Sin precio automático: '+sin.map(function(p){return p.n}).join(', ')+'. Para esos se usa el precio que apuntes abajo.';
+      el.textContent=txt;return;
+    }
     if(!S.preciosFecha){el.textContent='Apunta el precio actual de cada activo abajo, en «Precio de cada activo».';return}
     var f=new Date(S.preciosFecha);
     el.textContent='Precios apuntados por última vez el '+f.toLocaleDateString('es-ES',{day:'numeric',month:'long',year:'numeric'})+'. Actualízalos abajo con los de Trade Republic.';
@@ -829,10 +847,18 @@
       if(k==='sobPct'||k==='retPct'||k==='extPct')v=Math.min(100,v);
       dm[k]=v;
       updMes(mk);return}
+    if(t.dataset&&t.dataset.isin!==undefined){
+      var ii=+t.dataset.isin;if(!S.pos[ii])return;
+      S.pos[ii].isin=t.value.replace(/\s+/g,'').toUpperCase();
+      if(t.value!==S.pos[ii].isin){var cp=t.selectionStart;t.value=S.pos[ii].isin;try{t.setSelectionRange(cp,cp)}catch(e){}}
+      updCartera();updPrecioMsg();
+      var dd=calc().pos[ii],ps=$('#ps'+ii);if(ps&&dd)ps.textContent=srcTxt(dd,!dd.activo&&!dd.vacio);
+      return}
     if(t.dataset&&t.dataset.pi!==undefined){S.pos[+t.dataset.pi].precio=Math.max(0,num(t.value));S.preciosFecha=new Date().toISOString();updCartera();updPrecioMsg();return}
   });
   document.addEventListener('change',function(e){
     var t=e.target;
+    if(t.dataset&&t.dataset.isin!==undefined&&curTab==='cartera'){refreshForms();return}
     if(t.type==='checkbox'&&t.dataset&&t.dataset.k==='manual'){
       var mi=+t.dataset.mk,mm=D[mi];if(!mm)return;mm.manual=t.checked;
       if(t.checked&&!(mm.real>0))mm.real=Math.round(prevMes(mm));
@@ -872,6 +898,32 @@
     sync();
   }
   initTheme();
+
+  /* ---------- precios en directo ---------- */
+  /* Un proceso automático de GitHub publica cada 15 minutos los precios por ISIN en la rama «precios». */
+  var PRECIOS_URL='https://raw.githubusercontent.com/sergicalvoalos-dev/APP-AHORRO/precios/precios.json';
+  function aplicarPrecios(j){
+    if(!j||!j.precios||typeof j.precios!=='object')return false;
+    if(LIVE.data&&LIVE.data.actualizado===j.actualizado)return false;
+    LIVE.data=j;return true;
+  }
+  function refrescarVista(){
+    if(!started)return;
+    var ae=document.activeElement;
+    if(!RO&&ae&&ae.closest&&ae.closest('main')&&/INPUT|SELECT|TEXTAREA/.test(ae.tagName))return;
+    if(curTab==='cartera'){updCartera();refreshForms();updPrecioMsg()}
+    else if(curTab==='panel')renderPanel();
+  }
+  function cargarPrecios(){
+    if(!window.fetch)return;
+    fetch(PRECIOS_URL+'?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){
+      if(aplicarPrecios(j)){try{localStorage.setItem('app-ahorro-precios',JSON.stringify(j))}catch(e){}refrescarVista()}
+    }).catch(function(){});
+  }
+  try{aplicarPrecios(JSON.parse(localStorage.getItem('app-ahorro-precios')||'null'))}catch(e){}
+  cargarPrecios();
+  setInterval(cargarPrecios,10*60*1000);
+  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')cargarPrecios()});
 
   /* ---------- modo consulta (móvil) ---------- */
   var RO=false,mqRO=window.matchMedia?[window.matchMedia('(max-width: 759px)'),window.matchMedia('(hover: none) and (pointer: coarse)')]:[];
@@ -930,6 +982,6 @@
     setStatus:function(k){var el=$('#save-st');if(!el)return;if(RO&&k==='saved')k='ro';el.textContent=STX[k]||'';el.className='save-st st-'+k},
     reset:function(){started=false;S=defaultState();D={};openK=null;lastSaved=null},
     isReadOnly:function(){return RO},
-    _state:function(){return S},_drafts:function(){return D},_setRO:setRO
+    _state:function(){return S},_precios:function(j){if(aplicarPrecios(j))refrescarVista()},_drafts:function(){return D},_setRO:setRO
   };
 })();

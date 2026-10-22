@@ -283,6 +283,11 @@ input[readonly]{background:var(--plane)}
 
 /* ---------- app real ---------- */
 .top-r{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end}
+.priceRow{grid-template-columns:minmax(0,1fr) 140px 110px minmax(120px,auto)}
+.priceRow .pn{font-weight:600;min-width:0}
+.priceRow .pl-live{font-weight:700;text-align:right;padding:0 4px}
+.priceRow .src{font-size:12.5px}
+@media (max-width:640px){.priceRow{grid-template-columns:minmax(0,1fr) 110px;row-gap:4px}.priceRow .src{display:block!important;grid-column:1/-1}}
 .save-st{font-size:12.5px;font-weight:600;color:var(--ink-2);white-space:nowrap}
 .save-st.st-error,.save-st.st-offline{color:var(--bad-text)}
 .save-st.st-pend,.save-st.st-saving{color:var(--ink-2)}

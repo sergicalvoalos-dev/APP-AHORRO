@@ -17,6 +17,15 @@ En el ordenador se puede editar todo. En el móvil la app es **solo de consulta*
 
 Los datos se guardan en Firebase (Cloud Firestore), en el documento `usuarios/<tu id de usuario>`, al que solo puede acceder tu cuenta de Google. **En este repositorio no hay ningún dato tuyo**, solo el código. La configuración de Firebase que aparece en `firebase.js` no es secreta: es la que usa cualquier web para conectarse; lo que protege los datos son las reglas de `firestore.rules`.
 
+## Precios en directo
+
+Un proceso automático de GitHub (`.github/workflows/precios.yml`) descarga cada 15 minutos, de lunes a viernes en horario de mercado, el último precio en euros de cada activo de `precios/activos.json` desde justETF, buscándolo por ISIN. Lo publica en la rama `precios` (archivo `precios.json`) y la app lo lee de ahí.
+
+- En la app, cada activo tiene un campo **ISIN** en Cartera → Precio de cada activo. Si su ISIN está en la lista, la app usa el precio en directo; si no, usa el precio que apuntes a mano.
+- Para seguir un activo nuevo: añade su ISIN a `precios/activos.json` y escríbelo también en la app.
+- justETF no es una fuente oficial ni garantiza el servicio. Si deja de responder, la app sigue funcionando con el último precio descargado o con el manual.
+- GitHub pausa los procesos programados de los repositorios sin actividad durante 60 días. Si pasa, se reactiva desde la pestaña Actions.
+
 ## Archivos
 
 | Archivo | Para qué sirve |
