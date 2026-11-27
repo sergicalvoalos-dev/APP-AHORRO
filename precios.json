@@ -1,0 +1,42 @@
+{
+  "actualizado": "2026-11-27T22:50:04.422Z",
+  "fuente": "justETF",
+  "moneda": "EUR",
+  "precios": {
+    "IE00B5BMR087": {
+      "nombre": "Core S&P 500 USD (Acc)",
+      "precio": 718.15,
+      "fecha": "2026-11-27",
+      "mercado": "XETRA",
+      "cambioDia": 0.85
+    },
+    "IE000YYE6WK5": {
+      "nombre": "Defense USD (Acc)",
+      "precio": 49.85,
+      "fecha": "2026-11-27",
+      "mercado": "XETRA",
+      "cambioDia": 2.91
+    },
+    "IE00BG0J4C88": {
+      "nombre": "Digital Security USD (Acc)",
+      "precio": 11.61,
+      "fecha": "2026-11-27",
+      "mercado": "LSE",
+      "cambioDia": 1.13
+    },
+    "IE00B4ND3602": {
+      "nombre": "Physical Gold USD (Acc)",
+      "precio": 64.23,
+      "fecha": "2026-11-27",
+      "mercado": "XETRA",
+      "cambioDia": 1.79
+    },
+    "LU1437017350": {
+      "nombre": "Core MSCI Mercados Emergentes",
+      "precio": 92.73,
+      "fecha": "2026-11-27",
+      "mercado": "LSE",
+      "cambioDia": 2.46
+    }
+  }
+}
